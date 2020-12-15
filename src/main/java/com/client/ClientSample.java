@@ -18,14 +18,21 @@ public class ClientSample {
         monitorServer();
     }
     private static  void monitorServer() throws InterruptedException {
+        String hostname=PropertiesCfg.get("hostname");
+        Integer port=Integer.parseInt(PropertiesCfg.get("port"));
+        String destination=PropertiesCfg.get("destination");
+        String topic=PropertiesCfg.get("topic");
         // 创建链接
-        CanalConnector connector = CanalConnectors.newSingleConnector(new InetSocketAddress("10.0.102.147",
-                11111), "10.0.102.147_DB", "", "");
+        CanalConnector connector = CanalConnectors.newSingleConnector(new InetSocketAddress(hostname,
+                port), destination, "", "");
+//        CanalConnector connector = CanalConnectors.newSingleConnector(new InetSocketAddress("10.0.102.147",
+//                11111), "10.0.102.147_DB", "", "");
         int batchSize = 1000;
         int emptyCount = 0;
         try {
             connector.connect();
-            connector.subscribe(".*\\..*");
+            //connector.subscribe(".*\\..*");
+            connector.subscribe(topic);
             connector.rollback();
             int totalEmptyCount = 120;
             while (emptyCount < totalEmptyCount) {
