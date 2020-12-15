@@ -8,6 +8,7 @@ import com.alibaba.otter.canal.protocol.CanalEntry.EntryType;
 import com.alibaba.otter.canal.protocol.CanalEntry.EventType;
 import com.alibaba.otter.canal.protocol.CanalEntry.RowChange;
 import com.alibaba.otter.canal.protocol.CanalEntry.RowData;
+import com.client.DB.DAO;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.net.InetSocketAddress;
@@ -29,6 +30,7 @@ public class ClientSample {
 //                11111), "10.0.102.147_DB", "", "");
         int batchSize = 1000;
         int emptyCount = 0;
+        long batchId=0;
         try {
             connector.connect();
             //connector.subscribe(".*\\..*");
@@ -37,7 +39,7 @@ public class ClientSample {
             int totalEmptyCount = 120;
             while (emptyCount < totalEmptyCount) {
                 Message message = connector.getWithoutAck(batchSize); // 获取指定数量的数据
-                long batchId = message.getId();
+                batchId = message.getId();
                 int size = message.getEntries().size();
                 if (batchId == -1 || size == 0) {
                     emptyCount++;
@@ -57,7 +59,11 @@ public class ClientSample {
             }
 
             System.out.println("empty too many times, exit");
-        } finally {
+        }catch (Exception e) {
+            if(batchId > -1){
+                connector.rollback(batchId);// 处理失败, 回滚数据
+            }
+        }finally {
             System.out.printf("mysql断开连接，1分钟后重新连接");
             Thread.sleep(1000 * 60);
             //connector.disconnect();
@@ -87,6 +93,7 @@ public class ClientSample {
             String sql=rowChage.getSql();
             if(sql != null && sql.length() > 0){
                 System.out.printf(sql);
+                insertDB(sql);
             }
 
             for (RowData rowData : rowChage.getRowDatasList()) {
@@ -154,6 +161,7 @@ public class ClientSample {
                         break;
                     }
                 }
+                insertDB(sqlWhere.toString());
                 System.out.printf("更新数据库："+sqlWhere.toString());
             }
         }catch (InvalidProtocolBufferException e){
@@ -199,6 +207,7 @@ public class ClientSample {
                     }
                 }
                 sql.append(")");
+                insertDB(sql.toString());
                 System.out.printf("插入数据库："+sql.toString());
             }
         } catch (InvalidProtocolBufferException e) {
@@ -223,6 +232,7 @@ public class ClientSample {
                     }
                 }
                 System.out.printf("删除数据库："+sql.toString());
+                insertDB(sql.toString());
             }
         } catch (InvalidProtocolBufferException e) {
             e.printStackTrace();
@@ -231,6 +241,12 @@ public class ClientSample {
     private static void printColumn(List<Column> columns) {
         for (Column column : columns) {
             System.out.println(column.getName() + " : " + column.getValue() + "    update=" + column.getUpdated());
+        }
+    }
+
+    private static void insertDB(String sql){
+        if(sql!=null && sql.length()>0){
+            new DAO().Update("insert into sqllog (body) values(?)", sql);
         }
     }
 }
